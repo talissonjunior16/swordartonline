@@ -1,16 +1,15 @@
+using Unity.Netcode;
 using UnityEngine;
 
-public class Character : MonoBehaviour
+[RequireComponent(typeof(NetworkObject))]
+public class Character : NetworkBehaviour
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
+        if (!IsOwner)
+        {
+            // Desabilita os controles se não for o jogador local
+            GetComponent<CharacterMovementWithAnimator>().enabled = false;
+        }
     }
 }

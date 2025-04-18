@@ -1,8 +1,9 @@
+using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.AI;
 
 [RequireComponent(typeof(NavMeshAgent))]
-public class Enemy : MonoBehaviour
+public class Enemy : NetworkBehaviour
 {
     public float patrolRadius = 10f;
     public float detectionRadius = 8f;
@@ -31,6 +32,8 @@ public class Enemy : MonoBehaviour
 
     void Update()
     {
+        if (!IsServer) return;
+        
         float distanceToPlayer = Vector3.Distance(transform.position, player.position);
         playerInRange = distanceToPlayer <= detectionRadius;
 
