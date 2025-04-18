@@ -15,7 +15,7 @@ GameObject:
   - component: {fileID: -1998795213564064803}
   - component: {fileID: 4393266779262562914}
   - component: {fileID: 6138806325489327208}
-  - component: {fileID: 2774091667627700047}
+  - component: {fileID: 8637056485970221609}
   m_Layer: 0
   m_Name: Knight
   m_TagString: Untagged
@@ -61,7 +61,7 @@ MonoBehaviour:
   SceneMigrationSynchronization: 1
   SpawnWithObservers: 1
   DontDestroyWithOwner: 0
-  AutoObjectParentSync: 1
+  AutoObjectParentSync: 0
   SyncOwnerTransformWhenParented: 1
   AllowOwnerToParent: 0
 --- !u!114 &3281070814099375171
@@ -194,7 +194,7 @@ MonoBehaviour:
   UseRigidBodyForMotion: 0
   AutoUpdateKinematicState: 1
   AutoSetKinematicOnDespawn: 1
---- !u!114 &2774091667627700047
+--- !u!114 &8637056485970221609
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

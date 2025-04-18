@@ -14,17 +14,13 @@ public class Character : NetworkBehaviour
     public float dashDuration = 0.2f;
 
     private Animator childAnimator;
-    private float locomotionSpeed;
     private Rigidbody rb;
-
     private bool isDashing = false;
 
     void Start()
     {
         rb = GetComponent<Rigidbody>();
-
-        if (IsOwner)
-            InitializeAnimator();
+        InitializeAnimator();
     }
 
     void Update()
@@ -43,31 +39,56 @@ public class Character : NetworkBehaviour
 
         SendMovementInputServerRpc(inputDirection, isRunning);
 
-        UpdateAnimator(isRunning ? runSpeed : walkSpeed, inputDirection);
-
-        if (Input.GetMouseButtonDown(0) && childAnimator != null)
-            childAnimator.SetTrigger("Attack");
+        if (Input.GetMouseButtonDown(0))
+            RequestAttackAnimationServerRpc();
 
         if (Input.GetKeyDown(KeyCode.Space) && !isDashing && inputDirection != Vector3.zero)
         {
-            if (childAnimator != null)
-                childAnimator.SetTrigger("Dash");
-
             RequestDashServerRpc(inputDirection);
+            RequestDashAnimationServerRpc();
         }
     }
 
     [ServerRpc]
     private void SendMovementInputServerRpc(Vector3 direction, bool isRunning)
     {
-        if (direction == Vector3.zero || isDashing) return;
+        float locomotionSpeed = 0f;
 
-        float speed = isRunning ? runSpeed : walkSpeed;
-        Vector3 newPosition = rb.position + direction * speed * Time.fixedDeltaTime;
-        rb.MovePosition(newPosition);
+        if (!isDashing)
+        {
+            if (direction != Vector3.zero)
+            {
+                float speed = isRunning ? runSpeed : walkSpeed;
+                locomotionSpeed = isRunning ? 1f : 0.5f;
 
-        Quaternion toRotation = Quaternion.LookRotation(direction, Vector3.up);
-        rb.MoveRotation(Quaternion.Slerp(transform.rotation, toRotation, 10f * Time.fixedDeltaTime));
+                Vector3 newPosition = rb.position + direction * speed * Time.fixedDeltaTime;
+                rb.MovePosition(newPosition);
+
+                Quaternion toRotation = Quaternion.LookRotation(direction, Vector3.up);
+                rb.MoveRotation(Quaternion.Slerp(transform.rotation, toRotation, 10f * Time.fixedDeltaTime));
+            }
+            else
+            {
+                locomotionSpeed = 0f;
+            }
+
+            if (childAnimator != null)
+                childAnimator.SetFloat("LocomotionSpeed", locomotionSpeed); // synced by NetworkAnimator
+        }
+    }
+
+    [ServerRpc]
+    private void RequestAttackAnimationServerRpc()
+    {
+        if (childAnimator != null)
+            childAnimator.SetTrigger("Attack"); // synced by NetworkAnimator
+    }
+
+    [ServerRpc]
+    private void RequestDashAnimationServerRpc()
+    {
+        if (childAnimator != null)
+            childAnimator.SetTrigger("Dash"); // synced by NetworkAnimator
     }
 
     [ServerRpc]
@@ -96,15 +117,6 @@ public class Character : NetworkBehaviour
 
         rb.MovePosition(end);
         isDashing = false;
-    }
-
-    private void UpdateAnimator(float speed, Vector3 direction)
-    {
-        locomotionSpeed = direction == Vector3.zero ? 0f : (speed == runSpeed ? 1f : 0.5f);
-        if (childAnimator != null)
-        {
-            childAnimator.SetFloat("LocomotionSpeed", locomotionSpeed);
-        }
     }
 
     private void InitializeAnimator()
