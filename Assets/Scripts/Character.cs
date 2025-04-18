@@ -14,41 +14,107 @@ public class Character : NetworkBehaviour
     public float dashDuration = 0.2f;
 
     private Animator childAnimator;
-    private Vector3 inputDirection;
     private float currentSpeed;
     private float locomotionSpeed;
-
     private Rigidbody rb;
+
+    private Vector3 cachedInputDirection = Vector3.zero;
+    private bool isDashing = false;
 
     private readonly KeyCode[] movementKeys = new[] { KeyCode.W, KeyCode.A, KeyCode.S, KeyCode.D };
 
     void Start()
     {
         rb = GetComponent<Rigidbody>();
-        rb.interpolation = RigidbodyInterpolation.Interpolate;
-        rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
-        rb.isKinematic = false;
 
-        if (!IsOwner) return;
-
-        InitializeAnimator();
+        if (IsOwner)
+        {
+            InitializeAnimator();
+        }
     }
 
     void Update()
     {
         if (!IsOwner) return;
 
-        HandleMovementInput();
-        UpdateAnimator();
-        HandleAttack();
-        HandleDash();
+        Vector3 inputDirection = Vector3.zero;
+
+        foreach (KeyCode key in movementKeys)
+        {
+            if (Input.GetKey(key))
+            {
+                inputDirection += KeyToDirection(key);
+            }
+        }
+
+        inputDirection = inputDirection.normalized;
+        bool run = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+
+        SendMovementServerRpc(inputDirection, run);
+
+        UpdateAnimator(run ? runSpeed : walkSpeed, inputDirection);
+
+        if (Input.GetMouseButtonDown(0) && childAnimator != null)
+        {
+            childAnimator.SetTrigger("Attack");
+        }
+
+        if (Input.GetKeyDown(KeyCode.Space) && !isDashing && inputDirection != Vector3.zero)
+        {
+            if (childAnimator != null)
+                childAnimator.SetTrigger("Dash");
+
+            DashServerRpc(inputDirection);
+        }
     }
 
-    void FixedUpdate()
+    [ServerRpc]
+    private void SendMovementServerRpc(Vector3 direction, bool run)
     {
-        if (!IsOwner) return;
+        if (direction == Vector3.zero) return;
 
-        UpdateMovement();
+        currentSpeed = run ? runSpeed : walkSpeed;
+        Vector3 newPosition = rb.position + direction * currentSpeed * Time.fixedDeltaTime;
+        rb.MovePosition(newPosition);
+
+        Quaternion toRotation = Quaternion.LookRotation(direction, Vector3.up);
+        rb.MoveRotation(Quaternion.Slerp(transform.rotation, toRotation, 10f * Time.fixedDeltaTime));
+    }
+
+    [ServerRpc]
+    private void DashServerRpc(Vector3 direction)
+    {
+        if (!isDashing)
+        {
+            StartCoroutine(SmoothDash(direction));
+        }
+    }
+
+    private IEnumerator SmoothDash(Vector3 direction)
+    {
+        isDashing = true;
+        Vector3 dashStartPos = transform.position;
+        Vector3 dashTargetPos = transform.position + direction * dashDistance;
+        float startTime = Time.time;
+
+        while (Time.time - startTime < dashDuration)
+        {
+            float t = (Time.time - startTime) / dashDuration;
+            rb.MovePosition(Vector3.Lerp(dashStartPos, dashTargetPos, t));
+            yield return null;
+        }
+
+        rb.MovePosition(dashTargetPos);
+        isDashing = false;
+    }
+
+    private void UpdateAnimator(float speed, Vector3 direction)
+    {
+        locomotionSpeed = direction == Vector3.zero ? 0f : (speed == runSpeed ? 1f : 0.5f);
+        if (childAnimator != null)
+        {
+            childAnimator.SetFloat("LocomotionSpeed", locomotionSpeed);
+        }
     }
 
     private void InitializeAnimator()
@@ -58,93 +124,6 @@ public class Character : NetworkBehaviour
         {
             Debug.LogWarning("No Animator found in child of " + gameObject.name);
         }
-    }
-
-    private void HandleMovementInput()
-    {
-        Vector3 newDirection = Vector3.zero;
-
-        foreach (KeyCode key in movementKeys)
-        {
-            if (Input.GetKey(key))
-            {
-                newDirection += KeyToDirection(key);
-            }
-        }
-
-        inputDirection = newDirection.normalized;
-    }
-
-    private void UpdateMovement()
-    {
-        if (inputDirection != Vector3.zero)
-        {
-            currentSpeed = (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) ? runSpeed : walkSpeed;
-
-            Vector3 newPosition = rb.position + inputDirection * currentSpeed * Time.fixedDeltaTime;
-            rb.MovePosition(newPosition);
-
-            Quaternion toRotation = Quaternion.LookRotation(inputDirection, Vector3.up);
-            rb.MoveRotation(Quaternion.Slerp(transform.rotation, toRotation, 10f * Time.fixedDeltaTime));
-        }
-        else
-        {
-            currentSpeed = 0f;
-        }
-    }
-
-    private void UpdateAnimator()
-    {
-        locomotionSpeed = currentSpeed == 0f ? 0f : (currentSpeed == runSpeed ? 1f : 0.5f);
-        if (childAnimator != null)
-        {
-            childAnimator.SetFloat("LocomotionSpeed", locomotionSpeed);
-        }
-    }
-
-    private void HandleAttack()
-    {
-        if (Input.GetMouseButtonDown(0) && childAnimator != null)
-        {
-            childAnimator.SetTrigger("Attack");
-        }
-    }
-
-    private void HandleDash()
-    {
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            if (childAnimator != null)
-            {
-                childAnimator.SetTrigger("Dash");
-            }
-
-            if (inputDirection != Vector3.zero)
-            {
-                Vector3 dashStartPos = transform.position;
-                Vector3 dashTargetPos = transform.position + inputDirection * dashDistance;
-                StartCoroutine(SmoothDash(dashStartPos, dashTargetPos, Time.time));
-            }
-        }
-    }
-
-    private IEnumerator SmoothDash(Vector3 startPosition, Vector3 targetPosition, float startTime)
-    {
-        float elapsedTime = 0f;
-
-        while (elapsedTime < dashDuration)
-        {
-            elapsedTime = Time.time - startTime;
-            float t = elapsedTime / dashDuration;
-
-            if (rb)
-                rb.MovePosition(Vector3.Lerp(startPosition, targetPosition, t));
-
-            yield return null;
-        }
-
-        if (rb)
-            rb.MovePosition(targetPosition);
     }
 
     private Vector3 KeyToDirection(KeyCode key)
