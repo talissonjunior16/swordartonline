@@ -15,6 +15,7 @@ GameObject:
   - component: {fileID: -1998795213564064803}
   - component: {fileID: 4393266779262562914}
   - component: {fileID: 6138806325489327208}
+  - component: {fileID: 2774091667627700047}
   m_Layer: 0
   m_Name: Knight
   m_TagString: Untagged
@@ -193,6 +194,21 @@ MonoBehaviour:
   UseRigidBodyForMotion: 0
   AutoUpdateKinematicState: 1
   AutoSetKinematicOnDespawn: 1
+--- !u!114 &2774091667627700047
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7203563833052680989}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e8d0727d5ae3244e3b569694d3912374, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
+  TransitionStateInfoList: []
+  m_Animator: {fileID: 7701574525839031741}
 --- !u!1001 &1596800411840804918
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -258,9 +274,6 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: b85e61b71629aae44967d1a0779b47b2, type: 3}
       insertIndex: -1
       addedObject: {fileID: 7701574525839031741}
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: b85e61b71629aae44967d1a0779b47b2, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 9062660419366412973}
   m_SourcePrefab: {fileID: 100100000, guid: b85e61b71629aae44967d1a0779b47b2, type: 3}
 --- !u!4 &1270649508065877981 stripped
 Transform:
@@ -294,18 +307,3 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
---- !u!114 &9062660419366412973
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1939239797645821287}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e8d0727d5ae3244e3b569694d3912374, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  ShowTopMostFoldoutHeaderGroup: 1
-  TransitionStateInfoList: []
-  m_Animator: {fileID: 7701574525839031741}
