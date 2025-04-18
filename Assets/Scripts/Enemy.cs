@@ -34,6 +34,13 @@ public class Enemy : NetworkBehaviour
     {
         if (!IsServer) return;
         
+        if (player == null)
+        {
+            player = FindFirstObjectByType<Character>()?.transform;
+            if (player == null)
+                return; // ❌ Don't run this frame if still null
+        }
+
         float distanceToPlayer = Vector3.Distance(transform.position, player.position);
         playerInRange = distanceToPlayer <= detectionRadius;
 
