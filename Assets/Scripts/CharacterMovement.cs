@@ -1,14 +1,18 @@
 using UnityEngine;
 using System.Collections.Generic;
+using System.Collections;
 
 public class CharacterMovementWithAnimator : MonoBehaviour
 {
     public float walkSpeed = 2f;
     public float runSpeed = 5f;
+    public float dashDistance = 5f;
+    public float dashDuration = 0.2f;
+
     private Animator childAnimator;
     private Vector3 inputDirection;
-    private float locomotionSpeed;
     private float currentSpeed;
+    private float locomotionSpeed;
 
     private Dictionary<KeyCode, float> lastTapTimes = new Dictionary<KeyCode, float>();
     private float doubleTapThreshold = 0.3f;
@@ -18,23 +22,40 @@ public class CharacterMovementWithAnimator : MonoBehaviour
 
     void Start()
     {
+        InitializeAnimator();
+        InitializeTapTimes();
+    }
+
+    void Update()
+    {
+        HandleMovementInput();
+        UpdateMovement();
+        UpdateAnimator();
+        HandleAttack();
+        HandleDash();
+    }
+
+    private void InitializeAnimator()
+    {
         childAnimator = GetComponentInChildren<Animator>();
         if (childAnimator == null)
         {
             Debug.LogWarning("No Animator found in child of " + gameObject.name);
         }
+    }
 
+    private void InitializeTapTimes()
+    {
         foreach (KeyCode key in movementKeys)
         {
             lastTapTimes[key] = -1f;
         }
     }
 
-    void Update()
+    private void HandleMovementInput()
     {
         Vector3 newDirection = Vector3.zero;
 
-        // Handle input and double-tap detection
         foreach (KeyCode key in movementKeys)
         {
             if (Input.GetKeyDown(key))
@@ -43,7 +64,6 @@ public class CharacterMovementWithAnimator : MonoBehaviour
 
                 if (time - lastTapTimes[key] <= doubleTapThreshold)
                 {
-                    // Double-tap detected -> start running
                     isRunning = true;
                 }
 
@@ -57,33 +77,74 @@ public class CharacterMovementWithAnimator : MonoBehaviour
         }
 
         inputDirection = newDirection.normalized;
+    }
 
-        // Update movement speed based on state
+    private void UpdateMovement()
+    {
         if (inputDirection != Vector3.zero)
         {
-            currentSpeed = isRunning ? runSpeed : walkSpeed;
-        }
-        else
-        {
-            currentSpeed = 0f;
-            isRunning = false; // Stop running when no keys are held
-        }
+            currentSpeed = (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) ? runSpeed : walkSpeed;
 
-        // Move character
-        if (inputDirection != Vector3.zero)
-        {
             transform.Translate(inputDirection * currentSpeed * Time.deltaTime, Space.World);
 
             Quaternion toRotation = Quaternion.LookRotation(inputDirection, Vector3.up);
             transform.rotation = Quaternion.Slerp(transform.rotation, toRotation, 10f * Time.deltaTime);
         }
+        else
+        {
+            currentSpeed = 0f;
+            isRunning = false;
+        }
+    }
 
-        // Set animator value
-        locomotionSpeed = currentSpeed == 0f ? 0f : (isRunning ? 1f : 0.5f);
+    private void UpdateAnimator()
+    {
+        locomotionSpeed = currentSpeed == 0f ? 0f : (currentSpeed == runSpeed ? 1f : 0.5f);
         if (childAnimator != null)
         {
             childAnimator.SetFloat("LocomotionSpeed", locomotionSpeed);
         }
+    }
+
+    private void HandleAttack()
+    {
+        if (Input.GetMouseButtonDown(0) && childAnimator != null)
+        {
+            childAnimator.SetTrigger("Attack");
+        }
+    }
+
+    private void HandleDash()
+    {
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            if (childAnimator != null)
+            {
+                childAnimator.SetTrigger("Dash");
+            }
+
+            if (inputDirection != Vector3.zero)
+            {
+                Vector3 dashStartPos = transform.position;
+                Vector3 dashTargetPos = transform.position + inputDirection * dashDistance;
+                StartCoroutine(SmoothDash(dashStartPos, dashTargetPos, Time.time));
+            }
+        }
+    }
+
+    private IEnumerator SmoothDash(Vector3 startPosition, Vector3 targetPosition, float startTime)
+    {
+        float elapsedTime = 0f;
+
+        while (elapsedTime < dashDuration)
+        {
+            elapsedTime = Time.time - startTime;
+            float t = elapsedTime / dashDuration;
+            transform.position = Vector3.Lerp(startPosition, targetPosition, t);
+            yield return null;
+        }
+
+        transform.position = targetPosition;
     }
 
     private Vector3 KeyToDirection(KeyCode key)
