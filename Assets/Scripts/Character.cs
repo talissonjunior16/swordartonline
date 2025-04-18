@@ -14,23 +14,17 @@ public class Character : NetworkBehaviour
     public float dashDuration = 0.2f;
 
     private Animator childAnimator;
-    private float currentSpeed;
     private float locomotionSpeed;
     private Rigidbody rb;
 
-    private Vector3 cachedInputDirection = Vector3.zero;
     private bool isDashing = false;
-
-    private readonly KeyCode[] movementKeys = new[] { KeyCode.W, KeyCode.A, KeyCode.S, KeyCode.D };
 
     void Start()
     {
         rb = GetComponent<Rigidbody>();
 
         if (IsOwner)
-        {
             InitializeAnimator();
-        }
     }
 
     void Update()
@@ -39,42 +33,37 @@ public class Character : NetworkBehaviour
 
         Vector3 inputDirection = Vector3.zero;
 
-        foreach (KeyCode key in movementKeys)
-        {
-            if (Input.GetKey(key))
-            {
-                inputDirection += KeyToDirection(key);
-            }
-        }
+        if (Input.GetKey(KeyCode.W)) inputDirection += Vector3.forward;
+        if (Input.GetKey(KeyCode.S)) inputDirection += Vector3.back;
+        if (Input.GetKey(KeyCode.A)) inputDirection += Vector3.left;
+        if (Input.GetKey(KeyCode.D)) inputDirection += Vector3.right;
 
-        inputDirection = inputDirection.normalized;
-        bool run = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+        inputDirection.Normalize();
+        bool isRunning = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
 
-        SendMovementServerRpc(inputDirection, run);
+        SendMovementInputServerRpc(inputDirection, isRunning);
 
-        UpdateAnimator(run ? runSpeed : walkSpeed, inputDirection);
+        UpdateAnimator(isRunning ? runSpeed : walkSpeed, inputDirection);
 
         if (Input.GetMouseButtonDown(0) && childAnimator != null)
-        {
             childAnimator.SetTrigger("Attack");
-        }
 
         if (Input.GetKeyDown(KeyCode.Space) && !isDashing && inputDirection != Vector3.zero)
         {
             if (childAnimator != null)
                 childAnimator.SetTrigger("Dash");
 
-            DashServerRpc(inputDirection);
+            RequestDashServerRpc(inputDirection);
         }
     }
 
     [ServerRpc]
-    private void SendMovementServerRpc(Vector3 direction, bool run)
+    private void SendMovementInputServerRpc(Vector3 direction, bool isRunning)
     {
-        if (direction == Vector3.zero) return;
+        if (direction == Vector3.zero || isDashing) return;
 
-        currentSpeed = run ? runSpeed : walkSpeed;
-        Vector3 newPosition = rb.position + direction * currentSpeed * Time.fixedDeltaTime;
+        float speed = isRunning ? runSpeed : walkSpeed;
+        Vector3 newPosition = rb.position + direction * speed * Time.fixedDeltaTime;
         rb.MovePosition(newPosition);
 
         Quaternion toRotation = Quaternion.LookRotation(direction, Vector3.up);
@@ -82,9 +71,9 @@ public class Character : NetworkBehaviour
     }
 
     [ServerRpc]
-    private void DashServerRpc(Vector3 direction)
+    private void RequestDashServerRpc(Vector3 direction)
     {
-        if (!isDashing)
+        if (!isDashing && direction != Vector3.zero)
         {
             StartCoroutine(SmoothDash(direction));
         }
@@ -93,18 +82,19 @@ public class Character : NetworkBehaviour
     private IEnumerator SmoothDash(Vector3 direction)
     {
         isDashing = true;
-        Vector3 dashStartPos = transform.position;
-        Vector3 dashTargetPos = transform.position + direction * dashDistance;
+
+        Vector3 start = transform.position;
+        Vector3 end = start + direction * dashDistance;
         float startTime = Time.time;
 
         while (Time.time - startTime < dashDuration)
         {
             float t = (Time.time - startTime) / dashDuration;
-            rb.MovePosition(Vector3.Lerp(dashStartPos, dashTargetPos, t));
+            rb.MovePosition(Vector3.Lerp(start, end, t));
             yield return null;
         }
 
-        rb.MovePosition(dashTargetPos);
+        rb.MovePosition(end);
         isDashing = false;
     }
 
@@ -121,20 +111,6 @@ public class Character : NetworkBehaviour
     {
         childAnimator = GetComponentInChildren<Animator>();
         if (childAnimator == null)
-        {
             Debug.LogWarning("No Animator found in child of " + gameObject.name);
-        }
-    }
-
-    private Vector3 KeyToDirection(KeyCode key)
-    {
-        return key switch
-        {
-            KeyCode.W => Vector3.forward,
-            KeyCode.S => Vector3.back,
-            KeyCode.A => Vector3.left,
-            KeyCode.D => Vector3.right,
-            _ => Vector3.zero,
-        };
     }
 }
