@@ -1,5 +1,4 @@
 using UnityEngine;
-using System.Collections.Generic;
 using System.Collections;
 
 public class CharacterMovementWithAnimator : MonoBehaviour
@@ -14,16 +13,11 @@ public class CharacterMovementWithAnimator : MonoBehaviour
     private float currentSpeed;
     private float locomotionSpeed;
 
-    private Dictionary<KeyCode, float> lastTapTimes = new Dictionary<KeyCode, float>();
-    private float doubleTapThreshold = 0.3f;
-    private bool isRunning = false;
-
     private readonly KeyCode[] movementKeys = new[] { KeyCode.W, KeyCode.A, KeyCode.S, KeyCode.D };
 
     void Start()
     {
         InitializeAnimator();
-        InitializeTapTimes();
     }
 
     void Update()
@@ -44,31 +38,12 @@ public class CharacterMovementWithAnimator : MonoBehaviour
         }
     }
 
-    private void InitializeTapTimes()
-    {
-        foreach (KeyCode key in movementKeys)
-        {
-            lastTapTimes[key] = -1f;
-        }
-    }
-
     private void HandleMovementInput()
     {
         Vector3 newDirection = Vector3.zero;
 
         foreach (KeyCode key in movementKeys)
         {
-            if (Input.GetKeyDown(key))
-            {
-                float time = Time.time;
-
-                if (time - lastTapTimes[key] <= doubleTapThreshold)
-                {
-                    isRunning = true;
-                }
-
-                lastTapTimes[key] = time;
-            }
 
             if (Input.GetKey(key))
             {
@@ -93,7 +68,6 @@ public class CharacterMovementWithAnimator : MonoBehaviour
         else
         {
             currentSpeed = 0f;
-            isRunning = false;
         }
     }
 
