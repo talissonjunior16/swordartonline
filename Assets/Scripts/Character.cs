@@ -1,4 +1,5 @@
 using System.Collections;
+using Unity.Cinemachine;
 using Unity.Netcode;
 using Unity.Netcode.Components;
 using UnityEngine;
@@ -7,12 +8,17 @@ using UnityEngine;
 [RequireComponent(typeof(NetworkTransform))]
 [RequireComponent(typeof(Rigidbody))]
 public class Character : NetworkBehaviour
-{
-    public float walkSpeed = 2f;
-    public float runSpeed = 5f;
-    public float dashDistance = 5f;
-    public float dashDuration = 0.2f;
+{   
+    [SerializeField]
+    private float walkSpeed = 2f;
+    [SerializeField]
+    private float runSpeed = 5f;
+    [SerializeField]
+    private float dashDistance = 5f;
+    [SerializeField]
+    private float dashDuration = 0.2f;
 
+    private CinemachineCamera cinemachineCam;
     private Animator childAnimator;
     private Rigidbody rb;
     private bool isDashing = false;
@@ -48,6 +54,27 @@ public class Character : NetworkBehaviour
             RequestDashAnimationServerRpc();
         }
     }
+
+
+    public override void OnNetworkSpawn()
+    {
+        base.OnNetworkSpawn();
+
+        if (!IsOwner) return;
+
+        if (cinemachineCam == null)
+        {
+            cinemachineCam = FindFirstObjectByType<CinemachineCamera>();
+        }
+
+        if (cinemachineCam == null){
+            return;
+        }
+
+        cinemachineCam.Follow = transform;
+        cinemachineCam.LookAt = transform; // Optional: keeps camera focused on the player
+    }
+
 
     [ServerRpc]
     private void SendMovementInputServerRpc(Vector3 direction, bool isRunning)
