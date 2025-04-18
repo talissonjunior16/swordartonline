@@ -7,6 +7,7 @@ using UnityEngine;
 [RequireComponent(typeof(NetworkObject))]
 [RequireComponent(typeof(NetworkTransform))]
 [RequireComponent(typeof(Rigidbody))]
+[RequireComponent(typeof(Stats))]
 public class Character : NetworkBehaviour
 {   
     [SerializeField]
@@ -22,10 +23,13 @@ public class Character : NetworkBehaviour
     private Animator childAnimator;
     private Rigidbody rb;
     private bool isDashing = false;
+    private Stats stats;
 
     void Start()
     {
         rb = GetComponent<Rigidbody>();
+        stats = GetComponent<Stats>();
+
         InitializeAnimator();
     }
 
@@ -48,8 +52,9 @@ public class Character : NetworkBehaviour
         if (Input.GetMouseButtonDown(0))
             RequestAttackAnimationServerRpc();
 
-        if (Input.GetKeyDown(KeyCode.Space) && !isDashing && inputDirection != Vector3.zero)
+        if (Input.GetKeyDown(KeyCode.Space) && !isDashing && inputDirection != Vector3.zero && stats.CanDash())
         {
+            stats.UseStaminaForDash();
             RequestDashServerRpc(inputDirection);
             RequestDashAnimationServerRpc();
         }
