@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.AI;
 
 [RequireComponent(typeof(NavMeshAgent))]
+[RequireComponent(typeof(NetworkObject))]
 public class Enemy : NetworkBehaviour
 {
     public float patrolRadius = 10f;
@@ -11,21 +12,19 @@ public class Enemy : NetworkBehaviour
 
     private NavMeshAgent agent;
     private Vector3 startPosition;
-    private Transform player;
+    private Transform targetPlayer;
     private float patrolTimer;
-    private bool playerInRange;
     private Animator animator;
 
-    void Start()
+    public override void OnNetworkSpawn()
     {
+        if (!IsServer) return; // AI logic only runs on the server
+
         agent = GetComponent<NavMeshAgent>();
+        animator = GetComponentInChildren<Animator>();
         agent.stoppingDistance = 2.5f;
 
         startPosition = transform.position;
-        player = FindFirstObjectByType<Character>()?.transform;
-
-        // 👇 Get Animator from child
-        animator = GetComponentInChildren<Animator>();
 
         GoToNewPatrolPoint();
     }
@@ -33,40 +32,33 @@ public class Enemy : NetworkBehaviour
     void Update()
     {
         if (!IsServer) return;
-        
-        if (player == null)
+
+        if (targetPlayer == null)
         {
-            player = FindFirstObjectByType<Character>()?.transform;
-            if (player == null)
-                return; // ❌ Don't run this frame if still null
+            // Optionally cache closest player
+            var player = FindClosestPlayer();
+            if (player != null)
+                targetPlayer = player.transform;
+            else
+                return;
         }
 
-        float distanceToPlayer = Vector3.Distance(transform.position, player.position);
-        playerInRange = distanceToPlayer <= detectionRadius;
+        float distanceToPlayer = Vector3.Distance(transform.position, targetPlayer.position);
+        bool playerInRange = distanceToPlayer <= detectionRadius;
 
         if (playerInRange)
         {
             agent.speed = 4f;
-            if (animator != null)
-            {
-                animator.SetFloat("LocomotionSpeed", agent.velocity.magnitude);
-                animator.speed = 1f; // Run animation
-            }
-
-            agent.SetDestination(player.position);
+            agent.SetDestination(targetPlayer.position);
+            SyncAnimator(agent.velocity.magnitude, 1f);
         }
         else
         {
             agent.speed = 1.5f;
-            if (animator != null)
-            {
-                animator.SetFloat("LocomotionSpeed", agent.velocity.magnitude);
-                animator.speed = 0.5f; // Walk animation
-            }
+            SyncAnimator(agent.velocity.magnitude, 0.5f);
 
             patrolTimer += Time.deltaTime;
-
-            if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
+            if (agent.isOnNavMesh && !agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
             {
                 if (patrolTimer >= patrolWaitTime)
                 {
@@ -77,7 +69,6 @@ public class Enemy : NetworkBehaviour
         }
     }
 
-
     void GoToNewPatrolPoint()
     {
         Vector3 randomDirection = Random.insideUnitSphere * patrolRadius;
@@ -87,6 +78,33 @@ public class Enemy : NetworkBehaviour
         {
             agent.SetDestination(hit.position);
         }
+    }
+
+    void SyncAnimator(float speedValue, float animSpeed)
+    {
+        if (animator != null)
+        {
+            animator.SetFloat("LocomotionSpeed", speedValue); // Synced by NetworkAnimator
+            animator.speed = animSpeed;
+        }
+    }
+
+    Transform FindClosestPlayer()
+    {
+        float closestDist = float.MaxValue;
+        Character closest = null;
+
+        foreach (var character in FindObjectsByType<Character>(FindObjectsSortMode.None))
+        {
+            float dist = Vector3.Distance(transform.position, character.transform.position);
+            if (dist < closestDist)
+            {
+                closestDist = dist;
+                closest = character;
+            }
+        }
+
+        return closest?.transform;
     }
 
     void OnDrawGizmosSelected()
