@@ -18,6 +18,8 @@ public class Enemy : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
+        base.OnNetworkSpawn();
+
         if (!IsServer) return; // AI logic only runs on the server
 
         agent = GetComponent<NavMeshAgent>();
@@ -29,13 +31,12 @@ public class Enemy : NetworkBehaviour
         GoToNewPatrolPoint();
     }
 
-    void Update()
+    private void Update()
     {
         if (!IsServer) return;
 
         if (targetPlayer == null)
         {
-            // Optionally cache closest player
             var player = FindClosestPlayer();
             if (player != null)
                 targetPlayer = player.transform;
@@ -50,12 +51,12 @@ public class Enemy : NetworkBehaviour
         {
             agent.speed = 4f;
             agent.SetDestination(targetPlayer.position);
-            SyncAnimator(agent.velocity.magnitude, 1f);
+            UpdateAnimation(agent.velocity.magnitude, 1f);
         }
         else
         {
             agent.speed = 1.5f;
-            SyncAnimator(agent.velocity.magnitude, 0.5f);
+            UpdateAnimation(agent.velocity.magnitude, 0.5f);
 
             patrolTimer += Time.deltaTime;
             if (agent.isOnNavMesh && !agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
@@ -69,10 +70,11 @@ public class Enemy : NetworkBehaviour
         }
     }
 
-    void GoToNewPatrolPoint()
+    private void GoToNewPatrolPoint()
     {
         Vector3 randomDirection = Random.insideUnitSphere * patrolRadius;
         randomDirection += startPosition;
+        randomDirection.y = 0f;
 
         if (NavMesh.SamplePosition(randomDirection, out NavMeshHit hit, patrolRadius, NavMesh.AllAreas))
         {
@@ -80,16 +82,16 @@ public class Enemy : NetworkBehaviour
         }
     }
 
-    void SyncAnimator(float speedValue, float animSpeed)
+    private void UpdateAnimation(float moveSpeed, float animSpeed)
     {
         if (animator != null)
         {
-            animator.SetFloat("LocomotionSpeed", speedValue); // Synced by NetworkAnimator
+            animator.SetFloat("LocomotionSpeed", moveSpeed); // will sync via NetworkAnimator
             animator.speed = animSpeed;
         }
     }
 
-    Transform FindClosestPlayer()
+    private Transform FindClosestPlayer()
     {
         float closestDist = float.MaxValue;
         Character closest = null;
@@ -107,7 +109,7 @@ public class Enemy : NetworkBehaviour
         return closest?.transform;
     }
 
-    void OnDrawGizmosSelected()
+    private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, patrolRadius);
